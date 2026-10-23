@@ -1,0 +1,25 @@
+! Single-point calculations of short-range guest-framework contact configurations.
+SYSTEM = UiO-66 + guest, single point (short-range contact configurations)
+
+! ---- Electronic structure ----
+ENCUT  = 520
+PREC   = Accurate
+LREAL  = .FALSE.
+ALGO   = Normal
+ISMEAR = 0
+SIGMA  = 0.05
+EDIFF  = 1E-6
+IVDW   = 12
+ISYM   = 0
+
+! ---- Single-point (no ionic relaxation) ----
+IBRION = -1
+NSW    = 0
+ISIF   = 2
+
+! ---- I/O ----
+ISTART = 0
+LWAVE  = .FALSE.
+LCHARG = .FALSE.
+NCORE  = 1                 ! parallelization only
+ML_LMLFF = F

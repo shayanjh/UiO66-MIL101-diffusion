@@ -1,0 +1,34 @@
+! AIMD of the UiO-66 primitive cell with two guest molecules (N2 or CO2):
+! PBE-D3(BJ), Langevin thermostat at 300 K, 1 fs time step.
+! LANGEVIN_GAMMA needs one value per species in the POSCAR order.
+SYSTEM = UiO-66 primitive cell + 2 guest molecules, NVT AIMD at 300 K
+
+! --- Electronic ---
+ENCUT  = 520
+PREC   = Accurate
+LREAL  = .FALSE.
+ALGO   = Normal
+ISMEAR = 0
+SIGMA  = 0.05
+EDIFF  = 1E-6
+IVDW   = 12
+ISYM   = 0
+
+! --- MD (NVT) ---
+IBRION = 0
+MDALGO = 3
+TEBEG  = 300
+TEEND  = 300
+POTIM  = 1.0
+NSW    = 20000
+ISIF   = 2
+
+! Langevin friction (Zr O H C N -> 5 species)
+LANGEVIN_GAMMA = 10 10 10 10 10
+
+! --- I/O ---
+ISTART = 0
+LWAVE  = .FALSE.
+LCHARG = .FALSE.
+NCORE  = 32                ! parallelization only
+ML_LMLFF = F

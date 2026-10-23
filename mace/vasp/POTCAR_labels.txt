@@ -1,0 +1,8 @@
+PAW potentials (PBE) used, in POSCAR order. POTCAR files cannot be redistributed
+under the VASP license; build them from your own VASP installation.
+
+PAW_PBE Zr_sv 04Jan2005
+PAW_PBE O 08Apr2002
+PAW_PBE H 15Jun2001
+PAW_PBE C 08Apr2002
+PAW_PBE N 08Apr2002   (N2 data only)
