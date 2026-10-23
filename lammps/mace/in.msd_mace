@@ -1,0 +1,96 @@
+# =====================================================================
+# Self-diffusion of CO2 or N2 in UiO-66 with a MACE potential:
+# mean-squared displacements
+#
+# Each iteration: energy minimization, NVT thermalization for nvt_steps
+# steps with new random velocities, and an NVE production run of
+# prod_steps steps for the whole system (framework and guests integrated
+# together, no thermostat). The guest MSD (x, y, z, total) is printed every
+# print_every steps, one block per iteration.
+#
+# Requires LAMMPS built with the MACE pair style (ML-MACE, with KOKKOS for
+# GPUs) and a potential exported for LAMMPS (*-lammps.pt, see mace/models/).
+# Structures: structures/UiO66_2CO2_primitive.data and
+# structures/UiO66_2N2_primitive.data are the primitive cell with two guest
+# molecules; other loadings are built by placing guest molecules in the
+# relaxed cell, and larger cells with replicate_cell.
+#
+# Output: msd_mace_<tag>.txt, columns: iteration, step, MSD_x, MSD_y,
+#         MSD_z, MSD_total (Angstrom^2).
+# =====================================================================
+
+# ----------------- USER INPUTS -----------------
+#   lmp -k on g 1 -sf kk -pk kokkos newton on neigh half \
+#       -var datafile UiO66_2N2_primitive.data -var model MACE_N2-lammps.pt \
+#       -var elements "C H N O Zr" -var guest_select "type 3" -var tag 1.2mmolg_run1 -var seed 1268 -in in.msd_mace
+variable datafile      index {datafile}       # UiO-66 cell with the guest molecules
+variable model         index {model}          # MACE potential exported for LAMMPS (*-lammps.pt)
+variable elements      index {elements}       # element of each atom type of the data file, in type order (quoted)
+variable guest_select  index {guest_select}   # group definition of the guest atoms (quoted), e.g., "type 3" (N2 file),
+                                              # or "variable isguest" with isguest an atom-style variable (see below)
+variable n_guest_cell  index 2                # CO2 molecules per primitive cell (used only by "variable isguest")
+variable tag           index {tag}            # label of the output file
+variable seed          index {seed}           # base random seed; each iteration uses a different seed
+variable n_iter        index {n_iter}         # number of independent iterations
+variable replicate_cell index "1 1 1"         # e.g., "2 2 2" for the finite-size test
+variable T             index 300.0            # temperature (K)
+variable nvt_steps     index 5000             # NVT thermalization steps
+variable prod_steps    index 1000000          # NVE production steps (1 fs each, i.e., 1 ns)
+variable print_every   index 1000             # MSD output interval (steps)
+
+variable iter loop ${n_iter}
+label loop_start
+clear
+
+units          metal
+atom_style     atomic
+boundary       p p p
+atom_modify    map yes
+newton         on
+
+read_data      ${datafile}
+replicate      ${replicate_cell}
+
+pair_style     mace no_domain_decomposition
+pair_coeff     * * ${model} ${elements}
+
+neighbor       2.0 bin
+neigh_modify   delay 0 every 1 check yes one 10000 page 1000000
+timestep       0.001                          # ps (1 fs)
+
+# When the guest atoms share their types with the framework (CO2 file), they
+# are selected by their IDs: the 114 framework atoms come first in each
+# primitive cell, followed by the guest atoms (also after replicate).
+variable natoms_cell equal 114+3*${n_guest_cell}
+variable isguest atom "(id-1)%${natoms_cell} >= 114"
+group guest ${guest_select}
+variable vseed equal ${seed}+2000*${iter}
+thermo_style   custom step temp pe ke etotal press
+thermo         1000
+
+# ----------------- 1) MINIMIZATION -----------------
+min_style      cg
+minimize       1.0e-6 1.0e-8 1000 10000
+
+# ----------------- 2) NVT THERMALIZATION -----------------
+velocity       all create ${T} ${vseed} dist gaussian rot yes mom yes sum no
+fix            thermalize all nvt temp ${T} ${T} 0.1
+run            ${nvt_steps}
+unfix          thermalize
+
+# ----------------- 3) NVE PRODUCTION -----------------
+velocity       all zero linear
+reset_timestep 0
+fix            integrate all nve
+variable       t equal step
+compute        msd_guest guest msd
+fix            print_msd all print ${print_every} "${iter} ${t} $(c_msd_guest[1]) $(c_msd_guest[2]) $(c_msd_guest[3]) $(c_msd_guest[4])" &
+               screen no append msd_mace_${tag}.txt
+run            ${prod_steps}
+
+unfix          print_msd
+uncompute      msd_guest
+unfix          integrate
+
+next iter
+jump SELF loop_start

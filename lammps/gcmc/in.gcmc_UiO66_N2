@@ -1,0 +1,117 @@
+# =====================================================================
+# Staged MD-GCMC loading of N2 in UiO-66
+#
+# The reservoir pressure is raised stage by stage. In each stage, MD-GCMC
+# (framework NVT + rigid guests NVT, GCMC insertions and deletions) runs
+# until the number of adsorbed molecules N reaches the target of that
+# stage; GCMC is then switched off, the system is relaxed by MD for
+# 'settle' steps, and a snapshot is written. The largest per-atom potential
+# energy is printed with every snapshot as a check against overlaps
+# (values orders of magnitude larger than typical indicate an overlap, and
+# the snapshot should be discarded). The snapshots are the starting
+# configurations of the MSD simulations (msd_uff/).
+#
+# Guest model: N2 (rigid, two sites with the TraPPE Lennard-Jones parameters, no partial charges, N-N 1.095 Angstrom).
+#
+# The pressures are insertion drivers: a snapshot is written the first time
+# N reaches its target, so the pressure sets only how fast the target is
+# reached. The loading in mmol/g is N x 1000 / (framework mass in g/mol).
+# =====================================================================
+
+# ----------------- USER INPUTS -----------------
+# Replace each {...}, or pass the value on the command line, e.g.,
+#   lmp -var datafile my.data -var Nt 32 64 160 -var Pd 0.5 1.0 1.0 ... -in <this script>
+variable datafile    index {datafile}     # relaxed framework (structures/data.UiO-66.ddec or your own relaxed cell)
+variable out_prefix  index {out_prefix}   # prefix of the snapshot files, written as <out_prefix>_N<target>.data
+variable Tf          index {Tf}           # temperature (K)
+variable Nt          index {N_targets}    # target numbers of molecules, ascending, space separated
+variable Pd          index {P_reservoir}  # reservoir pressure (atm) of each stage, one per target, same order
+variable seed        index {seed}         # random seed of fix gcmc
+variable n_exchange  index {n_exchange}   # insertion/deletion attempts per GCMC call (e.g., 1 at very low loadings, 50-200 at high loadings)
+variable settle      index 50000          # MD steps (no GCMC) before each snapshot is written
+variable stage_max   index 4000000        # maximum number of steps per stage
+
+units           real
+atom_style      full
+boundary        p p p
+timestep        0.5                           # fs
+
+# ----------------- FORCE FIELD -----------------
+# Framework: UFF with DDEC charges (the bonded and Lennard-Jones parameters
+# are read from the data file). Guests: rigid models (see the molecule files).
+pair_style      lj/cut/coul/long 14.5
+bond_style      harmonic
+angle_style     hybrid cosine/periodic fourier
+dihedral_style  harmonic
+improper_style  fourier
+kspace_style    ewald 1.0e-4
+kspace_modify   gewald 0.3
+
+neighbor        2.0 nsq
+neigh_modify    delay 0 every 1 check yes one 10000 page 200000
+pair_modify     tail yes mix arithmetic       # Lorentz-Berthelot mixing, tail corrections
+special_bonds   lj/coul 0.0 0.0 1.0
+dielectric      1.0
+
+# ----------------- STRUCTURE -----------------
+read_data       ${datafile} &
+                extra/atom/types 1 &
+                extra/bond/types 1 &
+                extra/bond/per/atom 2 &
+                extra/special/per/atom 1
+
+group      FRAME type 1:5
+mass       6 14.0067       # N2 N
+pair_coeff 6 6 0.071500 3.3100
+bond_coeff 8 0.0 1.095             # K = 0: geometry is held by the rigid-body integrator
+group      N2 type 6
+molecule   n2 N2.txt toff 5 boff 7
+
+# ----------------- INTEGRATORS -----------------
+variable Tdamp equal 100.0                    # fs
+fix frame_nvt FRAME nvt temp ${Tf} ${Tf} ${Tdamp}
+fix guest_nvt N2 rigid/nvt/small molecule temp ${Tf} ${Tf} ${Tdamp} mol n2
+fix_modify guest_nvt dynamic/dof yes
+compute_modify thermo_temp dynamic/dof yes
+
+region box block EDGE EDGE EDGE EDGE EDGE EDGE
+
+# number of molecules, counted from one site type, and loading in mmol/g
+variable site atom "type==6"
+group    N2_site dynamic N2 var site
+variable N     equal count(N2_site)/2
+variable mmolg equal v_N*1000/mass(FRAME)
+
+compute peatom all pe/atom
+compute pemax  all reduce max c_peatom
+variable pemax equal c_pemax
+
+thermo       2000
+thermo_style custom step temp pe press v_N v_mmolg v_pemax
+
+variable chunk equal 100
+
+# ----------------- STAGES -----------------
+label stage
+print "=== stage: target N = ${Nt}, reservoir pressure = ${Pd} atm ==="
+fix gcmc N2 gcmc 100 ${n_exchange} 0 0 ${seed} ${Tf} 0.0 2.0 mol n2 group N2 &
+    rigid guest_nvt tfac_insert 1 full_energy region box pressure ${Pd} fugacity_coeff 1.0
+variable s0 equal $(step)
+
+label grow
+run ${chunk}
+if "$(v_N) >= ${Nt}" then "jump SELF write"
+if "$(step-v_s0) >= ${stage_max}" then "print 'target N = ${Nt} not reached within stage_max'" "unfix gcmc" "jump SELF next"
+jump SELF grow
+
+label write
+unfix gcmc
+run ${settle}
+write_data ${out_prefix}_N${Nt}.data
+print ">>> snapshot ${out_prefix}_N${Nt}.data: N = $(v_N), loading = $(v_mmolg) mmol/g, max per-atom PE = $(v_pemax)"
+
+label next
+next Nt Pd
+jump SELF stage
+
+print "=== all stages finished ==="

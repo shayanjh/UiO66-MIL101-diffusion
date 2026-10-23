@@ -1,0 +1,4 @@
+model,cell,framework_atoms,N2_molecules,loading_mmol_g,D_1e-9_m2_s,D_std,independent_runs
+MACE,primitive (1x1x1),114,2,1.2,4.88,1.2,see notebook
+MACE,2x2x2 supercell,912,16,1.2,5.59,0.81,10
+UFF,supercell,3648,64,1.2,6.06,0.21,see notebook

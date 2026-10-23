@@ -1,0 +1,48 @@
+# =====================================================================
+# Relaxation of an empty framework (UiO-66 or MIL-101(Cr)) with the UFF
+#
+# Energy minimization followed by MD in the NPT ensemble at temperature T
+# and 1 atm. The relaxed cell is the starting point of the GCMC loading
+# scripts (gcmc/).
+# =====================================================================
+
+# ----------------- USER INPUTS -----------------
+variable datafile    index {datafile}     # structures/data.UiO-66.ddec or structures/data.MIL-101.ddec
+variable out_file    index {out_file}     # relaxed data file written at the end
+variable angle_style index {angle_style}  # "hybrid cosine/periodic fourier" for UiO-66, cosine/periodic for MIL-101(Cr) (quoted)
+variable barostat    index {barostat}     # iso for UiO-66 (cubic cell), tri for MIL-101(Cr) (triclinic cell)
+variable T           index 300.0          # temperature (K)
+variable npt_steps   index 1000000        # NPT steps (0.5 fs each)
+variable seed        index {seed}
+
+units           real
+atom_style      full
+boundary        p p p
+timestep        0.5
+
+pair_style      lj/cut/coul/long 14.5
+bond_style      harmonic
+angle_style     ${angle_style}
+dihedral_style  harmonic
+improper_style  fourier
+kspace_style    ewald 1.0e-4
+kspace_modify   gewald 0.3
+
+neighbor        2.0 nsq
+neigh_modify    delay 0 every 1 check yes
+pair_modify     tail yes mix arithmetic
+special_bonds   lj/coul 0.0 0.0 1.0
+
+read_data       ${datafile}
+
+thermo          5000
+thermo_style    custom step temp pe press vol lx ly lz
+
+min_style       cg
+minimize        1.0e-6 1.0e-8 5000 50000
+
+velocity        all create ${T} ${seed} dist gaussian mom yes rot yes
+fix             relax all npt temp ${T} ${T} 100.0 ${barostat} 1.0 1.0 1000.0
+run             ${npt_steps}
+unfix           relax
+write_data      ${out_file}

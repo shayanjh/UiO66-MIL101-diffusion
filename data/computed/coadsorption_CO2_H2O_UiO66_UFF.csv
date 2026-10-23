@@ -1,0 +1,3 @@
+species,molecules_in_cell,loading_mmol_g,D_mixture_m2_s,D_mixture_std,D_pure_m2_s,D_pure_std,pure_loading_mmol_g
+CO2,153,2.87,1.04e-09,6e-11,2.16e-09,1.2e-10,3.0
+H2O,312,5.86,1.08e-10,6e-12,8.6e-11,5e-12,6.0

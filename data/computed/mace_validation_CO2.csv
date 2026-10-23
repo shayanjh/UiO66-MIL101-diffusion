@@ -1,0 +1,35 @@
+section,quantity,MACE,reference_DFT_or_exp,unit
+Energy accuracy,"RMSE, train (120 atoms)",0.108 (12.96),-,meV/atom (meV/cell)
+Energy accuracy,"MAE, train (120 atoms)",0.091 (10.91),-,meV/atom (meV/cell)
+Energy accuracy,"Bias, train",0.005,-,meV/atom
+Energy accuracy,"RMSE, unseen DFT (120 atoms)",0.237 (28.49),-,meV/atom (meV/cell)
+Energy accuracy,"MAE, unseen DFT (120 atoms)",0.230 (27.58),-,meV/atom (meV/cell)
+Energy accuracy,"Bias, unseen DFT",0.230,-,meV/atom
+Force accuracy,"RMSE, train, all",7.25,-,meV/A
+Force accuracy,"MAE, train, all",5.20,-,meV/A
+Force accuracy,"RMSE, unseen DFT, all",9.19,-,meV/A
+Force accuracy,"MAE, unseen DFT, all",6.19,-,meV/A
+Force accuracy,"RMSE, unseen DFT, framework Zr",14.67,-,meV/A
+Force accuracy,"RMSE, unseen DFT, framework O",8.95,-,meV/A
+Force accuracy,"RMSE, unseen DFT, framework C",8.44,-,meV/A
+Force accuracy,"RMSE, unseen DFT, framework H",3.94,-,meV/A
+Force accuracy,"RMSE, unseen DFT, CO2 (guest)",20.07,-,meV/A
+Phonons,"Lowest frequency off Gamma, 1x1x1",0.336 (11.2),-,THz (cm^-1)
+Phonons,"Lowest frequency off Gamma, 2x2x2",0.349 (11.7),-,THz (cm^-1)
+Phonons,"Acoustic Gamma frequencies, 1x1x1",1.0e-06 (~0),0 (exact),THz
+Phonons,"Acoustic Gamma frequencies, 2x2x2",8.0e-07 (~0),0 (exact),THz
+Phonons,"1x1x1 vs 2x2x2, mean |dw|",0.29,-,cm^-1
+Phonons,"1x1x1 vs 2x2x2, max |dw|",8.21,-,cm^-1
+Mechanical properties,"B0, E(V) fit (+/-6% window)",36.59,41.0,GPa
+Mechanical properties,"B0, E(V) fit (+/-2% window)",37.48,41.0,GPa
+Mechanical properties,"B0, P(V) fit (+/-6% window)",36.00,41.0,GPa
+Mechanical properties,"B0, P(V) fit (+/-2% window)",37.43,41.0,GPa
+Mechanical properties,"B0', E(V) fit (+/-6% / +/-2%)",1.13 / 3.00,-,-
+Mechanical properties,"a0=(4V0)^(1/3), E(V) fit",20.919,20.888,A
+Mechanical properties,MACE pressure at DFT cell volume,0.148,0 (by definition),GPa
+Mechanical properties,C11,- (not fit here),59.35,GPa
+Mechanical properties,C12,- (not fit here),31.85,GPa
+Mechanical properties,C44,- (not fit here),17.63,GPa
+MD stability (LAMMPS NVE),"Drift, 2x2x2 (960 atoms, 218 ps, dt=1 fs)",4.49e-02,-,ueV/atom/ps
+MD stability (LAMMPS NVE),C=O bond range,1.118 to 1.247,-,A
+MD stability (LAMMPS NVE),"O to C to O angle, mean",174.5,180 (linear),deg

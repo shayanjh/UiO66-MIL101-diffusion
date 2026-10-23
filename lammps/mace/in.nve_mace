@@ -1,0 +1,60 @@
+# =====================================================================
+# Energy conservation test of a MACE potential for UiO-66 with guests
+#
+# Langevin NVT equilibration for equil_steps steps, followed by an NVE run
+# of nve_ps ps with time step dt_fs. The total energy, temperature, and
+# largest atomic force are written every 5 fs to nve_<tag>.dat; the drift
+# of the total energy per atom is the measure of energy conservation
+# (analyzed in mace/notebooks/).
+# =====================================================================
+
+# ----------------- USER INPUTS -----------------
+variable datafile      index {datafile}       # UiO-66 cell with the guest molecules
+variable model         index {model}          # MACE potential exported for LAMMPS (*-lammps.pt)
+variable elements      index {elements}       # element of each atom type, in type order (quoted)
+variable tag           index {tag}            # label of the output files
+variable seed          index {seed}           # random seed
+variable replicate_cell index "1 1 1"         # e.g., "2 2 2"
+variable T             index 300.0            # temperature (K)
+variable dt_fs         index 0.5              # time step (fs)
+variable equil_steps   index 20000            # Langevin NVT steps
+variable nve_ps        index 80.0             # length of the NVE run (ps)
+
+variable dt_ps   equal ${dt_fs}/1000.0
+variable nsteps  equal round(${nve_ps}/${dt_ps})
+variable every   equal round(5.0/${dt_fs})
+
+units          metal
+atom_style     atomic
+boundary       p p p
+atom_modify    map yes
+newton         on
+
+read_data      ${datafile}
+replicate      ${replicate_cell}
+
+pair_style     mace no_domain_decomposition
+pair_coeff     * * ${model} ${elements}
+
+neighbor       2.0 bin
+neigh_modify   every 1 delay 0 check yes
+timestep       ${dt_ps}
+
+variable fa atom sqrt(fx*fx+fy*fy+fz*fz)
+compute  fmax all reduce max v_fa
+thermo_style   custom step time temp pe ke etotal c_fmax
+thermo_modify  norm no flush yes
+thermo         ${every}
+
+# ----------------- 1) EQUILIBRATION -----------------
+velocity       all create ${T} ${seed} mom yes rot no dist gaussian
+fix            integrate all nve
+fix            lang all langevin ${T} ${T} 0.1 ${seed} zero yes
+run            ${equil_steps}
+unfix          lang
+
+# ----------------- 2) NVE -----------------
+reset_timestep 0
+fix            elog all print ${every} "$(step) $(time:%.6f) $(temp:%.5f) $(pe:%.10f) $(ke:%.10f) $(etotal:%.10f) $(c_fmax:%.6f)" &
+               file nve_${tag}.dat screen no title "# step time_ps T_K pe_eV ke_eV etot_eV fmax_eV_A"
+run            ${nsteps}

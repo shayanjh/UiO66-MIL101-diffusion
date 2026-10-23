@@ -1,0 +1,99 @@
+# =====================================================================
+# Self-diffusion of CO2 in MIL-101(Cr) with the UFF: mean-squared displacements
+#
+# Starts from a loaded snapshot written by the GCMC scripts (gcmc/). Each
+# iteration assigns new random velocities, relaxes the system for
+# relax_steps steps (framework NVT + rigid guests NVT), and then runs the
+# production for prod_steps steps with the framework integrated with
+# frame_ensemble and the rigid guests in NVE. The MSD (x, y, z, total) is
+# printed every print_every steps, one block per iteration.
+# Guest model(s): TraPPE CO2 (rigid, three sites).
+#
+# Output: msd_MIL101_<guest>_<tag>.txt, columns: iteration, step,
+#         MSD_x, MSD_y, MSD_z, MSD_total (Angstrom^2).
+# Analysis: analysis/msd_diffusion_analysis.ipynb.
+# =====================================================================
+
+# ----------------- USER INPUTS -----------------
+#   lmp -var datafile my_loaded.data -var tag 3.0mmolg_run1 -var seed 12345 -in <this script>
+variable datafile      index {datafile}       # loaded snapshot from gcmc/
+variable tag           index {tag}            # label of the output files (e.g., loading and run id)
+variable seed          index {seed}           # base random seed; each iteration uses a different seed
+variable n_iter        index {n_iter}         # number of independent iterations (up to 100 in the article)
+variable T             index 300.0            # temperature (K)
+variable relax_steps   index 20000            # relaxation steps before each production run
+variable prod_steps    index 2000000          # production steps (0.5 fs each, i.e., 1 ns)
+variable print_every   index 100              # MSD output interval (steps)
+variable frame_ensemble index nvt             # framework integrator during production: nvt or nve
+
+variable iter loop ${n_iter}
+label loop_start
+clear
+
+units           real
+atom_style      full
+boundary        p p p
+timestep        0.5                           # fs
+
+# ----------------- FORCE FIELD -----------------
+# Framework: UFF with DDEC charges (the bonded and Lennard-Jones parameters
+# are read from the data file). Guests: rigid models (see the molecule files).
+pair_style      lj/cut/coul/long 14.5
+bond_style      harmonic
+angle_style     cosine/periodic
+dihedral_style  harmonic
+improper_style  fourier
+kspace_style    ewald 1.0e-4
+kspace_modify   gewald 0.3
+
+neighbor        2.0 nsq
+neigh_modify    delay 0 every 1 check yes one 10000 page 200000
+pair_modify     tail yes mix arithmetic       # Lorentz-Berthelot mixing, tail corrections
+special_bonds   lj/coul 0.0 0.0 1.0
+dielectric      1.0
+
+read_data       ${datafile}
+# The MIL-101(Cr) cell is triclinic: the image flags of the data file keep
+# molecules that span the periodic boundary whole and must not be reset;
+# the ghost cutoff is enlarged so that rigid bodies are not lost across
+# processor domains.
+comm_modify cutoff 18.0
+
+group FRAME type 1:7
+group CO2 type 8 9
+
+variable vseed equal ${seed}+7919*${iter}
+compute_modify thermo_temp dynamic/dof yes
+thermo       5000
+thermo_style custom step temp etotal pe press
+
+# ----------------- 1) RELAXATION -----------------
+velocity all create ${T} ${vseed} dist gaussian rot yes mom yes sum no loop geom
+fix relax_frame FRAME nvt temp ${T} ${T} 100.0
+fix relax_CO2 CO2 rigid/nvt/small molecule temp ${T} ${T} 100.0
+fix zero_mom all momentum 1000 linear 1 1 1
+run ${relax_steps}
+unfix zero_mom
+unfix relax_frame
+unfix relax_CO2
+
+# ----------------- 2) PRODUCTION -----------------
+velocity all zero linear
+if "${frame_ensemble} == nve" then "fix prod_frame FRAME nve" else "fix prod_frame FRAME nvt temp ${T} ${T} 100.0"
+fix rigid_CO2 CO2 rigid/small molecule
+
+reset_timestep 0
+variable t equal step
+compute msd_CO2 CO2 msd
+fix print_CO2 all print ${print_every} "${iter} ${t} $(c_msd_CO2[1]) $(c_msd_CO2[2]) $(c_msd_CO2[3]) $(c_msd_CO2[4])" &
+    screen no append msd_MIL101_CO2_${tag}.txt
+
+run ${prod_steps}
+
+unfix print_CO2
+uncompute msd_CO2
+unfix rigid_CO2
+unfix prod_frame
+
+next iter
+jump SELF loop_start

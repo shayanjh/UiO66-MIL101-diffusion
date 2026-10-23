@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use these files, please cite the article below."
+title: "Molecular Dynamics Simulation of Gas Diffusion in Metal-Organic Frameworks Based on a Classical Force Field and Machine-Learned Interatomic Potential (data and code)"
+authors:
+  - family-names: Jalalmanesh
+    given-names: Shayan
+    affiliation: University of Southern California
+  - family-names: Vaez Allaei
+    given-names: S. Mehdi
+    affiliation: Norwegian University of Science and Technology
+  - family-names: Sahimi
+    given-names: Muhammad
+    affiliation: University of Southern California
+    email: moe@usc.edu
+license: MIT
+preferred-citation:
+  type: article
+  title: "Molecular Dynamics Simulation of Gas Diffusion in Metal-Organic Frameworks Based on a Classical Force Field and Machine-Learned Interatomic Potential"
+  authors:
+    - family-names: Jalalmanesh
+      given-names: Shayan
+    - family-names: Vaez Allaei
+      given-names: S. Mehdi
+    - family-names: Sahimi
+      given-names: Muhammad
+  journal: Microporous and Mesoporous Materials
+  status: submitted
